@@ -3,47 +3,57 @@ pipeline {
 
     stages {
 
-        stage("Code") {
+        stage('Checkout Code') {
             steps {
-                git url: "https://github.com/ahsanmustafa11-a/docker-compose-python-flask.git", branch: "main"
+                git branch: 'main',
+                    url: 'https://github.com/ahsanmustafa11-a/docker-compose-python-flask.git'
             }
         }
 
-        stage("Test") {
+        stage('Test') {
             steps {
-                echo "Testing the Code"
+                echo "Running application tests..."
+                // Add your test commands here
             }
         }
 
-        stage("Build Docker Image") {
+        stage('Build Services') {
             steps {
-                sh "docker build -t my-flask-app ."
+                sh '''
+                    docker compose build
+                '''
             }
         }
 
-        stage("Push to DockerHub") {
+        stage('Deploy') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerpush',
-                    usernameVariable: 'dockerpushuser',
-                    passwordVariable: 'dockerpushPass'
-                )]) {
-
-                    sh """
-                        docker login -u ${dockerpushuser} -p ${dockerpushPass}
-                        docker tag my-flask-app ${dockerpushuser}/multi-tier-flask-app:latest
-                        docker push ${dockerpushuser}/multi-tier-flask-app:latest
-                    """
-                }
+                sh '''
+                    docker compose down || true
+                    docker compose up -d --build
+                '''
             }
         }
 
-        stage("Run Container") {
+        stage('Verify Deployment') {
             steps {
-                sh """
-                    docker run -p 5000:5000 my-flask-app
-                """
+                sh '''
+                    docker compose ps
+                '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Application deployed successfully."
+        }
+
+        failure {
+            echo "Pipeline failed."
+        }
+
+        always {
+            sh 'docker compose ps || true'
         }
     }
 }
