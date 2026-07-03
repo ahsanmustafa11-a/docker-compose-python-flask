@@ -39,6 +39,7 @@ services:
 
     build:
       context: ./backend
+    image: ahsanmustafa/flask-backend:latest
 
     container_name: lms-backend
 
@@ -71,6 +72,7 @@ services:
 
     build:
       context: ./frontend
+    image: ahsanmustafa/flask-frontend:latest  
 
     container_name: lms-frontend
 
