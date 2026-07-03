@@ -1,23 +1,16 @@
 pipeline {
-    agent any
+
+    agent { label 'dev-agent-key' }
 
     stages {
 
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/ahsanmustafa11-a/docker-compose-python-flask.git'
+                checkout scm
             }
         }
 
-        stage('Test') {
-            steps {
-                echo "Running application tests..."
-                // Add your test commands here
-            }
-        }
-
-        stage('Build Services') {
+        stage('Build Images') {
             steps {
                 sh '''
                     docker compose build
@@ -25,11 +18,33 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Docker Hub Login') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerpush',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                    '''
+                }
+            }
+        }
+
+        stage('Push Images') {
+            steps {
+                sh '''
+                    docker compose push
+                '''
+            }
+        }
+
+        stage('Deploy Containers') {
             steps {
                 sh '''
                     docker compose down || true
-                    docker compose up -d --build
+                    docker compose up -d
                 '''
             }
         }
@@ -37,23 +52,35 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
+                    echo "========== Running Containers =========="
+                    docker ps
+
+                    echo ""
+                    echo "========== Docker Images =========="
+                    docker images
+
+                    echo ""
+                    echo "========== Compose Status =========="
                     docker compose ps
                 '''
             }
         }
+
     }
 
     post {
+
         success {
-            echo "Application deployed successfully."
+            echo 'Application deployed successfully.'
         }
 
         failure {
-            echo "Pipeline failed."
+            echo 'Pipeline failed.'
         }
 
         always {
-            sh 'docker compose ps || true'
+            sh 'docker logout || true'
         }
+
     }
 }
